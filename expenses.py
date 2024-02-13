@@ -1,7 +1,16 @@
 from kivymd.app import MDApp
 from kivy.lang import Builder
 from kivy.uix.screenmanager import Screen
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.label import MDLabel
+from kivymd.uix.button import MDRectangleFlatButton
+from kivy.core.window import Window
+from kivymd.uix.menu import MDDropdownMenu
+from kivy.metrics import dp
+#Window.size=(500,1000)
+
 import sqlite3
+
 
 screen ="""
 
@@ -10,12 +19,15 @@ MDScreen:
         MDScreenManager:
             MDScreen:
                 MDTopAppBar:
-                    title:"Expenses App"
+                    id:appbarid
+                    title: "Expenses App (Expenses)"
                     left_action_items:[["menu",lambda x:nav_drawer.set_state("open")]]
                     pos_hint:{"top":1}
                     elevation:1
 
         ScreenManager:
+            id:screen_manager
+            on_current: app.change_title()
             Expenses:
             Category:
             ExpensesView:
@@ -35,6 +47,151 @@ MDScreen:
         
 <Expenses>:
     name:"expenses"
+    on_enter: root.update_scroll_pos()
+    MDBoxLayout:
+        id:firstlayout
+        orientation:"vertical"
+        spacing:15
+        padding:25
+        adaptive_height:True
+        pos_hint:{"top":0.92}
+
+        MDTextField:
+            id:datetimeid
+            hint_text:"Date"
+            mode:"fill"
+            required:True    
+
+        MDTextField:
+            id:categoryid
+            hint_text:"Category"
+            mode:"fill"
+            required:True 
+            on_focus: if self.focus: app.menu.open()
+
+        MDTextField:
+            id:inputtodo
+            hint_text:"item"
+            mode:"fill"
+            required:True    
+
+        MDTextField:
+            id:inputtodo
+            hint_text:"amount"
+            mode:"fill"
+            required:True   
+
+    MDSeparator:
+        height: dp(1)
+        pos_hint:{"top":0.64}
+
+
+    MDBoxLayout:
+        orientation:"horizontal"
+        spacing:25
+        padding:60
+        adaptive_height:True
+        pos_hint:{"top":0.65}
+
+        MDRaisedButton:
+            text:"Add"
+            size_hint_x:0.5
+
+        MDRaisedButton:
+            text:"Cancel"
+            size_hint_x:0.5
+
+    MDSeparator:
+        height: dp(1)
+        pos_hint:{"top":0.56}
+
+    MDBoxLayout:        
+        padding:25        
+        pos_hint:{"top":0.56}
+        size_hint_y: None  # Set the height to None to allow manual adjustment
+        height: dp(480) 
+
+
+        MDScrollView:
+            id: scroll_view           
+
+            MDList:
+                id:mylistid
+                TwoLineAvatarIconListItem:
+                    text: "Item 1"
+                    secondary_text: "Description for Item 1"
+                    icon: "star"
+                    ImageLeftWidget:
+                        source: "avatar1.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 2"
+                    secondary_text: "Description for Item 2"
+                    icon: "heart"
+                    ImageLeftWidget:
+                        source: "avatar2.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 3"
+                    secondary_text: "Description for Item 3"
+                    icon: "android"
+                    ImageLeftWidget:
+                        source: "avatar3.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 4"
+                    secondary_text: "Description for Item 1"
+                    icon: "star"
+                    ImageLeftWidget:
+                        source: "avatar1.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 5"
+                    secondary_text: "Description for Item 2"
+                    icon: "heart"
+                    ImageLeftWidget:
+                        source: "avatar2.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 6"
+                    secondary_text: "Description for Item 3"
+                    icon: "android"
+                    ImageLeftWidget:
+                        source: "avatar3.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 7"
+                    secondary_text: "Description for Item 1"
+                    icon: "star"
+                    ImageLeftWidget:
+                        source: "avatar1.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 8"
+                    secondary_text: "Description for Item 2"
+                    icon: "heart"
+                    ImageLeftWidget:
+                        source: "avatar2.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 9"
+                    secondary_text: "Description for Item 3"
+                    icon: "android"
+                    ImageLeftWidget:
+                        source: "avatar3.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 10"
+                    secondary_text: "Description for Item 1"
+                    icon: "star"
+                    ImageLeftWidget:
+                        source: "avatar1.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 11"
+                    secondary_text: "Description for Item 2"
+                    icon: "heart"
+                    ImageLeftWidget:
+                        source: "avatar2.png"
+                TwoLineAvatarIconListItem:
+                    text: "Item 12"
+                    secondary_text: "Description for Item 3"
+                    icon: "android"
+                    ImageLeftWidget:
+                        source: "avatar3.png"
+                    
+<Category>:
+    name:"category"  
     MDLabel:
         text:"Expenses Screen"
         halign:"center"
@@ -42,41 +199,40 @@ MDScreen:
     MDRectangleFlatButton:
         text:"First"
         pos_hint:{"center_x":0.5,"center_y":0.4}
-        on_press:root.manager.current="category"
-
-<Category>:
-    name:"category"
-   
-    MDLabel:
-        text:"Category Screen"
-        halign:"center"
-
-    MDRectangleFlatButton:
-        text:"Second"
-        pos_hint:{"center_x":0.5,"center_y":0.4}
-        on_press:root.manager.current="expenses"
-
+        #on_press:root.manager.current="category"
 
 <ExpensesView>:
-    name:"expensesview"
-<CategoryView>:
-<ChartView>:
+    name:"expensesview"        
 
+<CategoryView>:
+    name:"categoryview"   
+    
+<ChartView>:
+    name:"chartview"
 
 """
 
 class Expenses(Screen):
-    pass
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+      
 class Category(Screen):
-    pass
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        print("category")
+
 class ExpensesView(Screen):
-    pass
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        print("expense view")
+
 class CategoryView(Screen):
     pass
 class ChartView(Screen):
     pass
 
 class DatabaseHandler:
+
     def __init__(self):
         self.conn=sqlite3.connect("expense.db")
         command="CREATE TABLE IF NOT EXISTS todo (id TEXT, task TEXT)"
@@ -103,27 +259,56 @@ class DatabaseHandler:
     def close_connection(self):
         self.conn.close()
 
-
 class ExpenseApp(MDApp):
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.screen = Builder.load_string(screen)
+        
+        menu_items = [
+            {
+                "viewclass": "OneLineListItem",
+                "icon": "git",
+                "height": dp(56),
+                "text": f"Item {i}",
+                "on_release": lambda x=f"Item {i}": self.set_item(x),
+            } for i in range(5)]
+        self.menu = MDDropdownMenu(
+            caller=self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid,            
+            items=menu_items,
+            position="bottom",
+            width_mult=2,
+        )
+
+    def set_item(self, text__item):
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
+        self.menu.dismiss()
+
+
+
     def build(self):
-        self.sc=Builder.load_string(screen)
-        return self.sc
+        #self.sc=Builder.load_string(screen)                
+        return  self.screen
+    
+    def on_start(self):
+        self.change_title()
+        self.access_scroll_y()
+
+    def change_title(self):
+        current_screen = self.screen.ids.screen_manager.current_screen
+        title_text = current_screen.name.replace('_', ' ').capitalize() if current_screen else "Expenses"
+        self.screen.ids.appbarid.title =f"Expenses App ({title_text})" 
+        boxlayout = current_screen.ids.firstlayout
+        print(boxlayout)
+
+    def access_scroll_y(self):
+        # Accessing the Expenses screen
+        expenses_screen = self.screen.ids.screen_manager.get_screen("expenses")        
+        scroll_view = expenses_screen.ids.scroll_view
+        scroll_y = scroll_view.scroll_y
+        print("Scroll Y:", scroll_y)    
+
+        
     
 if __name__=="__main__":
     ExpenseApp().run()
-
-# class ExpenseApp(MDApp):
-#     def build(self):
-#         self.sc = Builder.load_string(screen)
-#         self.screen_manager = self.sc.ids.nav_drawer.ids.screen_manager
-#         self.screen_manager.bind(current=self.on_screen_change)  # Bind the current screen change event
-#         return self.sc
-
-#     def on_screen_change(self, instance, screen):
-#         current_screen_name = screen.name
-#         if current_screen_name == "expenses":
-#             self.sc.ids.top_app_bar.title = "Expenses Screen"
-#         elif current_screen_name == "category":
-#             self.sc.ids.top_app_bar.title = "Category Screen"
-#         # Add conditions for other screens as needed
