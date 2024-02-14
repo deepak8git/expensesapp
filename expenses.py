@@ -7,6 +7,7 @@ from kivymd.uix.button import MDRectangleFlatButton
 from kivy.core.window import Window
 from kivymd.uix.menu import MDDropdownMenu
 from kivy.metrics import dp
+from kivymd.uix.pickers import MDDatePicker
 #Window.size=(500,1000)
 
 import sqlite3
@@ -61,6 +62,7 @@ MDScreen:
             hint_text:"Date"
             mode:"fill"
             required:True    
+            on_focus: app.show_date_picker()
 
         MDTextField:
             id:categoryid
@@ -273,6 +275,7 @@ class ExpenseApp(MDApp):
                 "text": f"Item {i}",
                 "on_release": lambda x=f"Item {i}": self.set_item(x),
             } for i in range(5)]
+        
         self.menu = MDDropdownMenu(
             caller=self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid,            
             items=menu_items,
@@ -280,10 +283,26 @@ class ExpenseApp(MDApp):
             width_mult=2,
         )
 
+        self.date_dialog = MDDatePicker()
+        self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)
+
     def set_item(self, text__item):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
         self.menu.dismiss()
 
+
+    def on_save(self, instance, value, date_range):
+        
+        self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text = value.strftime("%d") + "/" + value.strftime("%m") + "/" + value.strftime("%Y")
+        self.date_dialog.dismiss()
+
+    def on_cancel(self, instance, value):
+        '''Events called when the "CANCEL" dialog box button is clicked.'''
+        self.date_dialog.dismiss()
+
+    def show_date_picker(self):
+        
+        self.date_dialog.open()
 
 
     def build(self):
