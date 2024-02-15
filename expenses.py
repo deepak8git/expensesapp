@@ -8,7 +8,7 @@ from kivy.core.window import Window
 from kivymd.uix.menu import MDDropdownMenu
 from kivy.metrics import dp
 from kivymd.uix.pickers import MDDatePicker
-#Window.size=(500,1000)
+#indow.size=(500,1000)
 
 import sqlite3
 
@@ -61,14 +61,16 @@ MDScreen:
             id:datetimeid
             hint_text:"Date"
             mode:"fill"
-            required:True    
-            on_focus: app.show_date_picker()
+            required:True 
+            keyboard_mode: "managed"
+            on_focus: if self.focus:app.show_date_picker()
 
         MDTextField:
             id:categoryid
             hint_text:"Category"
             mode:"fill"
-            required:True 
+            required:True
+            keyboard_mode: "managed"
             on_focus: if self.focus: app.menu.open()
 
         MDTextField:
@@ -81,6 +83,7 @@ MDScreen:
             id:inputtodo
             hint_text:"amount"
             mode:"fill"
+            input_type:"number"
             required:True   
 
     MDSeparator:
@@ -283,13 +286,17 @@ class ExpenseApp(MDApp):
             width_mult=2,
         )
 
+        self.menu.bind(on_dismiss=self.on_menu_dismiss)
         self.date_dialog = MDDatePicker()
         self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)
 
     def set_item(self, text__item):
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
         self.menu.dismiss()
-
+        
+    def on_menu_dismiss(self, instance):
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False        
 
     def on_save(self, instance, value, date_range):
         
@@ -301,8 +308,10 @@ class ExpenseApp(MDApp):
         self.date_dialog.dismiss()
 
     def show_date_picker(self):
-        
+         
         self.date_dialog.open()
+        self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.focus=False
+
 
 
     def build(self):
