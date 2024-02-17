@@ -8,7 +8,10 @@ from kivy.core.window import Window
 from kivymd.uix.menu import MDDropdownMenu
 from kivy.metrics import dp
 from kivymd.uix.pickers import MDDatePicker
-#indow.size=(500,1000)
+from datetime import datetime
+import uuid
+from kivymd.uix.list import ThreeLineAvatarIconListItem,IconLeftWidget,IconRightWidget
+#Window.size=(500,1000)
 
 import sqlite3
 
@@ -55,16 +58,31 @@ MDScreen:
         spacing:15
         padding:25
         adaptive_height:True
-        pos_hint:{"top":0.92}
+        pos_hint:{"top":0.86}
+        
 
-        MDTextField:
-            id:datetimeid
-            hint_text:"Date"
-            mode:"fill"
-            required:True 
-            keyboard_mode: "managed"
-            on_focus: if self.focus:app.show_date_picker()
+        MDBoxLayout:
+            orientation: "horizontal"
+            spacing: dp(10)
 
+            MDTextField:
+                id:datetimeid
+                hint_text:"Date"
+                mode:"fill"
+                required:True 
+                keyboard_mode: "managed"
+                size_hint_x:0.6 
+                on_focus: if self.focus:app.show_date_picker()
+
+            MDTextField:
+                id:timeid
+                hint_text:"time"
+                mode:"fill"
+                required:True 
+                size_hint_x:0.4 
+                keyboard_mode: "managed"
+                    
+            
         MDTextField:
             id:categoryid
             hint_text:"Category"
@@ -74,13 +92,13 @@ MDScreen:
             on_focus: if self.focus: app.menu.open()
 
         MDTextField:
-            id:inputtodo
+            id:itemnameid
             hint_text:"item"
             mode:"fill"
             required:True    
 
         MDTextField:
-            id:inputtodo
+            id:amountid
             hint_text:"amount"
             mode:"fill"
             input_type:"number"
@@ -101,10 +119,13 @@ MDScreen:
         MDRaisedButton:
             text:"Add"
             size_hint_x:0.5
+            #addnewrecord(self,datevalue,timevalue,catvalue,itemvalue,amountvalue):
+            on_release:app.addnewrecord(datetimeid.text,timeid.text,categoryid.text,itemnameid.text,amountid.text)
 
         MDRaisedButton:
             text:"Cancel"
             size_hint_x:0.5
+            on_release:app.clear_controls()
 
     MDSeparator:
         height: dp(1)
@@ -122,78 +143,14 @@ MDScreen:
 
             MDList:
                 id:mylistid
-                TwoLineAvatarIconListItem:
-                    text: "Item 1"
-                    secondary_text: "Description for Item 1"
-                    icon: "star"
-                    ImageLeftWidget:
-                        source: "avatar1.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 2"
-                    secondary_text: "Description for Item 2"
-                    icon: "heart"
-                    ImageLeftWidget:
-                        source: "avatar2.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 3"
-                    secondary_text: "Description for Item 3"
-                    icon: "android"
-                    ImageLeftWidget:
-                        source: "avatar3.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 4"
-                    secondary_text: "Description for Item 1"
-                    icon: "star"
-                    ImageLeftWidget:
-                        source: "avatar1.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 5"
-                    secondary_text: "Description for Item 2"
-                    icon: "heart"
-                    ImageLeftWidget:
-                        source: "avatar2.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 6"
-                    secondary_text: "Description for Item 3"
-                    icon: "android"
-                    ImageLeftWidget:
-                        source: "avatar3.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 7"
-                    secondary_text: "Description for Item 1"
-                    icon: "star"
-                    ImageLeftWidget:
-                        source: "avatar1.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 8"
-                    secondary_text: "Description for Item 2"
-                    icon: "heart"
-                    ImageLeftWidget:
-                        source: "avatar2.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 9"
-                    secondary_text: "Description for Item 3"
-                    icon: "android"
-                    ImageLeftWidget:
-                        source: "avatar3.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 10"
-                    secondary_text: "Description for Item 1"
-                    icon: "star"
-                    ImageLeftWidget:
-                        source: "avatar1.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 11"
-                    secondary_text: "Description for Item 2"
-                    icon: "heart"
-                    ImageLeftWidget:
-                        source: "avatar2.png"
-                TwoLineAvatarIconListItem:
-                    text: "Item 12"
-                    secondary_text: "Description for Item 3"
-                    icon: "android"
-                    ImageLeftWidget:
-                        source: "avatar3.png"
+                
+                # TwoLineAvatarIconListItem:
+                #     text: "Item 1"
+                #     secondary_text: "Description for Item 1"
+                #     icon: "star"
+                #     ImageLeftWidget:
+                #         source: "avatar1.png"
+                
                     
 <Category>:
     name:"category"  
@@ -299,8 +256,9 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False        
 
     def on_save(self, instance, value, date_range):
-        
         self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text = value.strftime("%d") + "/" + value.strftime("%m") + "/" + value.strftime("%Y")
+        current_time = datetime.now().strftime("%I:%M %p")
+        self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text = current_time
         self.date_dialog.dismiss()
 
     def on_cancel(self, instance, value):
@@ -308,11 +266,9 @@ class ExpenseApp(MDApp):
         self.date_dialog.dismiss()
 
     def show_date_picker(self):
-         
         self.date_dialog.open()
         self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.focus=False
-
-
+        self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.focus=False
 
     def build(self):
         #self.sc=Builder.load_string(screen)                
@@ -336,7 +292,53 @@ class ExpenseApp(MDApp):
         scroll_y = scroll_view.scroll_y
         print("Scroll Y:", scroll_y)    
 
+    def clear_controls(self):
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = ""
+        self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text =""
+        self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text =""
+        self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text =""
+        self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text =""
+
+
+
+    def addnewrecord(self,datevalue,timevalue,catvalue,itemvalue,amountvalue):
+       
+        if datevalue:
+            print("hi")
+            item_id=str(uuid.uuid4())
+            # self.all_record.append(
+            #     {"value":record,"id":item_id}
+            # )          
+
+            mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid  # Accessing mylistid properly
+                 
+            mylist.add_widget(
+                ThreeLineAvatarIconListItem(
+                    IconLeftWidget(
+                        icon="pencil",                        
+                        #on_release=lambda x: self.editbtn(item_id,record)
+                    ),
+                    IconRightWidget(
+                        icon="delete",
+                        on_release=lambda x:self.deletebtn(item_id)
+                    ),
+                    id=item_id,
+                    text=f"{amountvalue} - {itemvalue}",
+                    secondary_text=catvalue,
+                    tertiary_text=f"{datevalue} {timevalue}"
+                ) 
+            )
+            #self.screen.ids.inputtodo.focus=True
+            #self.db_handler.insert_record(item_id,record)           
+    def deletebtn(self,dataid):
         
-    
+        mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
+        print(mylist)
+        for child in mylist.children:
+            if child.id==dataid:
+                mylist.remove_widget(child)        
+        
+       
+
 if __name__=="__main__":
     ExpenseApp().run()
