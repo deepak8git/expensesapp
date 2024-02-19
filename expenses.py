@@ -81,7 +81,6 @@ MDScreen:
                 required:True 
                 size_hint_x:0.4 
                 keyboard_mode: "managed"
-                    
             
         MDTextField:
             id:categoryid
@@ -108,7 +107,6 @@ MDScreen:
         height: dp(1)
         pos_hint:{"top":0.64}
 
-
     MDBoxLayout:
         orientation:"horizontal"
         spacing:25
@@ -117,12 +115,13 @@ MDScreen:
         pos_hint:{"top":0.65}
 
         MDRaisedButton:
+            id:addbtnid
             text:"Add"
             size_hint_x:0.5
-            #addnewrecord(self,datevalue,timevalue,catvalue,itemvalue,amountvalue):
-            on_release:app.addnewrecord(datetimeid.text,timeid.text,categoryid.text,itemnameid.text,amountid.text)
+            on_release:app.add_new_record()
 
         MDRaisedButton:
+            id:cancelbtnid
             text:"Cancel"
             size_hint_x:0.5
             on_release:app.clear_controls()
@@ -137,7 +136,6 @@ MDScreen:
         size_hint_y: None  # Set the height to None to allow manual adjustment
         height: dp(480) 
 
-
         MDScrollView:
             id: scroll_view           
 
@@ -150,7 +148,6 @@ MDScreen:
                 #     icon: "star"
                 #     ImageLeftWidget:
                 #         source: "avatar1.png"
-                
                     
 <Category>:
     name:"category"  
@@ -226,6 +223,12 @@ class ExpenseApp(MDApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.screen = Builder.load_string(screen)
+        self.record_id=""
+        self.amount_value=""
+        self.item_value=""
+        self.cat_value=""
+        self.date_value=""
+        self.time_value=""
         
         menu_items = [
             {
@@ -298,47 +301,87 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text =""
         self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text =""
         self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text =""
+        self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text ="Add"  
 
 
+    def add_new_record(self):
 
-    def addnewrecord(self,datevalue,timevalue,catvalue,itemvalue,amountvalue):
-       
-        if datevalue:
-            print("hi")
-            item_id=str(uuid.uuid4())
-            # self.all_record.append(
-            #     {"value":record,"id":item_id}
-            # )          
-
+        if self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text=="Add":
+            
+            item_id=str(uuid.uuid4())         
             mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid  # Accessing mylistid properly
+            self.cat_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text)
+            self.time_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text )
+            self.date_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text )
+            self.item_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text)
+            self.amount_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text)
                  
             mylist.add_widget(
                 ThreeLineAvatarIconListItem(
                     IconLeftWidget(
                         icon="pencil",                        
-                        #on_release=lambda x: self.editbtn(item_id,record)
+                        #on_release=lambda x: self.editbtn(item_id,datevalue,timevalue,catvalue,itemvalue,amountvalue)
+                        on_release=lambda x: self.editbtn(item_id)
                     ),
                     IconRightWidget(
                         icon="delete",
                         on_release=lambda x:self.deletebtn(item_id)
                     ),
                     id=item_id,
-                    text=f"{amountvalue} - {itemvalue}",
-                    secondary_text=catvalue,
-                    tertiary_text=f"{datevalue} {timevalue}"
+                    text=f"{self.amount_value} - {self.item_value}",
+                    secondary_text=self.cat_value,
+                    tertiary_text=f"{self.date_value} - {self.time_value}"
                 ) 
             )
-            #self.screen.ids.inputtodo.focus=True
-            #self.db_handler.insert_record(item_id,record)           
+        
+        elif self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text=="Update":
+
+            print("hello world this is update")
+    
+            mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
+            self.cat_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text)
+            self.time_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text )
+            self.date_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text )
+            self.item_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text)
+            self.amount_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text)
+
+            for child in mylist.children:
+                if child.id==self.record_id:
+                    child.text=f"{self.amount_value} - {self.item_value}"
+                    child.secondary_text=str(self.cat_value)
+                    child.tertiary_text=f"{self.date_value} - {self.time_value}"
+
+        self.clear_controls()    
+              
+
     def deletebtn(self,dataid):
-        
         mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
-        print(mylist)
         for child in mylist.children:
-            if child.id==dataid:
-                mylist.remove_widget(child)        
-        
-       
+            if child.id==dataid:             
+                mylist.remove_widget(child) 
+
+
+    def editbtn(self,item_id):
+        print(item_id)     
+          
+        mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
+        for child in mylist.children:
+            if child.id==item_id:
+
+                self.amount_value,self.item_value = child.text.split("-")
+                self.cat_value = child.secondary_text
+                self.date_value,self.time_value= child.tertiary_text.split("-")
+          
+
+        self.record_id=item_id
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = self.cat_value.strip()
+        self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text =self.time_value.strip()
+        self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text =self.date_value.strip()
+        self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text =self.item_value.strip()
+        self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text =self.amount_value.strip()       
+        self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text ="Update"  
+
+
 
 if __name__=="__main__":
     ExpenseApp().run()
