@@ -193,35 +193,38 @@ class ChartView(Screen):
 class DatabaseHandler:
 
     def __init__(self):
-        self.conn=sqlite3.connect("expense.db")
-        command="CREATE TABLE IF NOT EXISTS todo (id TEXT, task TEXT)"
+        self.conn=sqlite3.connect("expensetodo.db")
+        command="CREATE TABLE IF NOT EXISTS expensetable (id TEXT, categoryid TEXT, expensedate TEXT, expensetime TEXT, categoryname TEXT,itemname TEXT,expenseamount TEXT)"
         self.conn.execute(command)
         self.conn.commit() 
+        #id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount
 
-    def insert_record(self,item_id,record):
-        self.conn.execute("INSERT INTO todo (id,task) VALUES (?,?)",(item_id,record))
+    def insert_record(self,item_id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount):
+        self.conn.execute("INSERT INTO expensetable (id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount) VALUES (?,?,?,?,?,?,?)",(item_id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount))
         self.conn.commit()        
     
-    def update_record(self, item_id,value):        
-        self.conn.execute("UPDATE todo SET task = ? WHERE id = ?", (value, item_id))       
+    def update_record(self, item_id,expensedate,expensetime,categoryname,itemname,expenseamount):        
+        self.conn.execute("UPDATE expensetable SET expensedate=?,expensetime=?,categoryname=?,itemname=?,expenseamount=? WHERE id = ?", (expensedate,expensetime,categoryname,itemname,expenseamount, item_id))       
         self.conn.commit()
 
     def delete_record(self,item_id):
-        self.conn.execute("DELETE FROM todo WHERE id = ?",(item_id,))
+        self.conn.execute("DELETE FROM expensetable WHERE id = ?",(item_id,))
         self.conn.commit()
 
     def fetch_all_record(self):
-        cursor=self.conn.execute("SELECT * FROM todo")
+        cursor=self.conn.execute("SELECT * FROM expensetable")
         records=cursor.fetchall()    
         return records
 
-    def close_connection(self):
+    def __del__(self):
         self.conn.close()
 
 class ExpenseApp(MDApp):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.db_handler=DatabaseHandler()
+
         self.screen = Builder.load_string(screen)
         self.record_id=""
         self.amount_value=""
@@ -258,6 +261,14 @@ class ExpenseApp(MDApp):
     def on_menu_dismiss(self, instance):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False        
 
+    def change_title(self):
+        current_screen = self.screen.ids.screen_manager.current_screen
+        title_text = current_screen.name.replace('_', ' ').capitalize() if current_screen else "Expenses"
+        self.screen.ids.appbarid.title =f"Expenses App ({title_text})" 
+        boxlayout = current_screen.ids.firstlayout
+        print(boxlayout)
+
+    # ************** Date Picker ***************
     def on_save(self, instance, value, date_range):
         self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text = value.strftime("%d") + "/" + value.strftime("%m") + "/" + value.strftime("%Y")
         current_time = datetime.now().strftime("%I:%M %p")
@@ -272,28 +283,15 @@ class ExpenseApp(MDApp):
         self.date_dialog.open()
         self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.focus=False
         self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.focus=False
-
+    # *******************************************
+    
     def build(self):
         #self.sc=Builder.load_string(screen)                
         return  self.screen
     
     def on_start(self):
         self.change_title()
-        self.access_scroll_y()
-
-    def change_title(self):
-        current_screen = self.screen.ids.screen_manager.current_screen
-        title_text = current_screen.name.replace('_', ' ').capitalize() if current_screen else "Expenses"
-        self.screen.ids.appbarid.title =f"Expenses App ({title_text})" 
-        boxlayout = current_screen.ids.firstlayout
-        print(boxlayout)
-
-    def access_scroll_y(self):
-        # Accessing the Expenses screen
-        expenses_screen = self.screen.ids.screen_manager.get_screen("expenses")        
-        scroll_view = expenses_screen.ids.scroll_view
-        scroll_y = scroll_view.scroll_y
-        print("Scroll Y:", scroll_y)    
+        self.load_records()
 
     def clear_controls(self):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = ""
@@ -303,6 +301,35 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text =""
         self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text ="Add"  
 
+    def load_records(self):
+        records=self.db_handler.fetch_all_record()
+        mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid 
+
+        for row in records:
+            ids=row[0]
+            self.date_value=row[2]
+            self.time_value=row[3]
+            self.cat_value=row[4]
+            self.item_value=row[5]
+            self.amount_value=row[6]
+
+            mylist.add_widget(
+                ThreeLineAvatarIconListItem(
+                    IconLeftWidget(
+                        icon="pencil",                        
+                        #on_release=lambda x: self.editbtn(item_id,datevalue,timevalue,catvalue,itemvalue,amountvalue)
+                        on_release=lambda x,item_id=ids: self.editbtn(item_id)
+                    ),
+                    IconRightWidget(
+                        icon="delete",
+                        on_release=lambda x,item_id=ids:self.deletebtn(item_id)
+                    ),
+                    id=ids,
+                    text=f"{self.amount_value} - {self.item_value}",
+                    secondary_text=self.cat_value,
+                    tertiary_text=f"{self.date_value} - {self.time_value}"
+                ) 
+            )        
 
     def add_new_record(self):
 
@@ -317,10 +344,10 @@ class ExpenseApp(MDApp):
             self.amount_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text)
                  
             mylist.add_widget(
+                
                 ThreeLineAvatarIconListItem(
                     IconLeftWidget(
                         icon="pencil",                        
-                        #on_release=lambda x: self.editbtn(item_id,datevalue,timevalue,catvalue,itemvalue,amountvalue)
                         on_release=lambda x: self.editbtn(item_id)
                     ),
                     IconRightWidget(
@@ -332,16 +359,15 @@ class ExpenseApp(MDApp):
                     secondary_text=self.cat_value,
                     tertiary_text=f"{self.date_value} - {self.time_value}"
                 ) 
-            )
+            )           
+            self.db_handler.insert_record(item_id,0,self.date_value,self.time_value,self.cat_value,self.item_value,self.amount_value)
         
         elif self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text=="Update":
-
-            print("hello world this is update")
     
             mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
-            self.cat_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text)
-            self.time_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text )
             self.date_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text )
+            self.time_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text )
+            self.cat_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text)                      
             self.item_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text)
             self.amount_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text)
 
@@ -350,28 +376,27 @@ class ExpenseApp(MDApp):
                     child.text=f"{self.amount_value} - {self.item_value}"
                     child.secondary_text=str(self.cat_value)
                     child.tertiary_text=f"{self.date_value} - {self.time_value}"
-
+             
+            self.db_handler.update_record(self.record_id,self.date_value,self.time_value,self.cat_value,self.item_value,self.amount_value)
+        
         self.clear_controls()    
-              
 
     def deletebtn(self,dataid):
+        
         mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
         for child in mylist.children:
             if child.id==dataid:             
                 mylist.remove_widget(child) 
-
+        self.db_handler.delete_record(dataid)
 
     def editbtn(self,item_id):
-        print(item_id)     
-          
+    
         mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
         for child in mylist.children:
             if child.id==item_id:
-
                 self.amount_value,self.item_value = child.text.split("-")
                 self.cat_value = child.secondary_text
                 self.date_value,self.time_value= child.tertiary_text.split("-")
-          
 
         self.record_id=item_id
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = self.cat_value.strip()
