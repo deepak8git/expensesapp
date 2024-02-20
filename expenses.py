@@ -190,11 +190,14 @@ class CategoryView(Screen):
 class ChartView(Screen):
     pass
 
-class DatabaseHandler:
+class ExpenseDatabaseHandler:
 
     def __init__(self):
         self.conn=sqlite3.connect("expensetodo.db")
         command="CREATE TABLE IF NOT EXISTS expensetable (id TEXT, categoryid TEXT, expensedate TEXT, expensetime TEXT, categoryname TEXT,itemname TEXT,expenseamount TEXT)"
+        self.conn.execute(command)
+
+        command="CREATE TABLE IF NOT EXISTS categorytable (categoryid TEXT, categoryname TEXT)"
         self.conn.execute(command)
         self.conn.commit() 
         #id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount
@@ -219,11 +222,39 @@ class DatabaseHandler:
     def __del__(self):
         self.conn.close()
 
+class CategoryDatabaseHandler:
+    def __init__(self):       
+        self.conn=sqlite3.connect("expensetodo.db")
+        command="CREATE TABLE IF NOT EXISTS categorytable (categoryid TEXT, categoryname TEXT)"
+        self.conn.execute(command)
+        self.conn.commit() 
+        #id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount
+
+    def insert_record(self,categoryid,categoryname):
+        self.conn.execute("INSERT INTO categorytable (categoryid,categoryname) VALUES (?,?)",(categoryid,categoryname))
+        self.conn.commit()        
+    
+    def update_record(self,categoryid,categoryname):        
+        self.conn.execute("UPDATE categorytable SET categoryname=? WHERE categoryid = ?", (categoryname, categoryid))       
+        self.conn.commit()
+
+    def delete_record(self,categoryid):
+        self.conn.execute("DELETE FROM categorytable WHERE categoryid = ?",(categoryid,))
+        self.conn.commit()
+
+    def fetch_all_record(self):
+        cursor=self.conn.execute("SELECT * FROM categorytable")
+        records=cursor.fetchall()    
+        return records
+
+    def __del__(self):
+        self.conn.close()
+
 class ExpenseApp(MDApp):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.db_handler=DatabaseHandler()
+        self.db_handler=ExpenseDatabaseHandler()
 
         self.screen = Builder.load_string(screen)
         self.record_id=""
