@@ -17,7 +17,8 @@ import sqlite3
 
 
 screen ="""
-
+<DrawerClickableItem@MDNavigationDrawerItem>
+    padding_y: "8dp"
 MDScreen:
     MDNavigationLayout:
         MDScreenManager:
@@ -42,16 +43,70 @@ MDScreen:
             id:nav_drawer   
 
             MDNavigationDrawerMenu:
+                padding: "10dp", "10dp"
                 MDNavigationDrawerHeader:
                     title:"Expenses App"                    
                     title_font_size: "20sp"           
                     font_size: "16sp"                  
                     spacing:"4dp"
                     padding:"12dp",0,0,"32dp"  
+
+                
+                MDNavigationDrawerLabel:
+                    text:"Menu"
+
+                DrawerClickableItem:
+                    icon:"wallet-outline"
+                    text:"Expenses"
+                    on_release:
+                        app.root.ids.screen_manager.current = "expenses"
+                        app.close_nav_drawer()
+
+                DrawerClickableItem:
+                    icon:"format-list-bulleted"
+                    text:"Category"
+                    on_release: 
+                        app.root.ids.screen_manager.current = "category"
+                        app.close_nav_drawer()
+
+                DrawerClickableItem:
+                    icon:"file-document-outline"
+                    text:"Expenses View"
+                    on_release:
+                        app.root.ids.screen_manager.current = "expenseview"
+                        app.close_nav_drawer()
+
+                DrawerClickableItem:
+                    icon:"folder"
+                    text:"Category View"
+                    on_release:
+                        app.root.ids.screen_manager.current = "categoryview"
+                        app.close_nav_drawer()
+
+                DrawerClickableItem:
+                    icon:"chart-areaspline"
+                    text:"Chart View"
+                    on_release:
+                        app.root.ids.screen_manager.current = "chartview"
+                        app.close_nav_drawer()
+                
+                MDSeparator:
+                                               
+               
+                MDNavigationDrawerLabel:
+                    text:"Settings"
+                    padding: "12dp", "20dp", "0dp", "12dp"
+                DrawerClickableItem:
+                    icon:"cog-outline"
+                    text:"Settings"
+                DrawerClickableItem:
+                    icon:"information-outline"
+                    text:"About Me"
+
+
         
 <Expenses>:
-    name:"expenses"
-    on_enter: root.update_scroll_pos()
+    name:"expenses"    
     MDBoxLayout:
         id:firstlayout
         orientation:"vertical"
@@ -152,23 +207,47 @@ MDScreen:
 <Category>:
     name:"category"  
     MDLabel:
-        text:"Expenses Screen"
+        text:"Category Screen"
         halign:"center"
 
     MDRectangleFlatButton:
-        text:"First"
+        text:"Category"
         pos_hint:{"center_x":0.5,"center_y":0.4}
-        #on_press:root.manager.current="category"
+       
 
 <ExpensesView>:
-    name:"expensesview"        
+    name:"expenseview"    
+   
+    MDLabel:
+        text:"Expense View Screen"
+        halign:"center"
 
+    MDRectangleFlatButton:
+        text:"Expense View"
+        pos_hint:{"center_x":0.5,"center_y":0.4}
+       
 <CategoryView>:
     name:"categoryview"   
-    
+   
+    MDLabel:
+        text:"Category Screen"
+        halign:"center"
+
+    MDRectangleFlatButton:
+        text:"Category"
+        pos_hint:{"center_x":0.5,"center_y":0.4}
+           
 <ChartView>:
     name:"chartview"
+   
+    MDLabel:
+        text:"Chart View Screen"
+        halign:"center"
 
+    MDRectangleFlatButton:
+        text:"ChartView"
+        pos_hint:{"center_x":0.5,"center_y":0.4}
+       
 """
 
 class Expenses(Screen):
@@ -230,19 +309,19 @@ class CategoryDatabaseHandler:
         self.conn.commit() 
         #id,categoryid,expensedate,expensetime,categoryname,itemname,expenseamount
 
-    def insert_record(self,categoryid,categoryname):
+    def insert_category(self,categoryid,categoryname):
         self.conn.execute("INSERT INTO categorytable (categoryid,categoryname) VALUES (?,?)",(categoryid,categoryname))
         self.conn.commit()        
     
-    def update_record(self,categoryid,categoryname):        
+    def update_category(self,categoryid,categoryname):        
         self.conn.execute("UPDATE categorytable SET categoryname=? WHERE categoryid = ?", (categoryname, categoryid))       
         self.conn.commit()
 
-    def delete_record(self,categoryid):
+    def delete_category(self,categoryid):
         self.conn.execute("DELETE FROM categorytable WHERE categoryid = ?",(categoryid,))
         self.conn.commit()
 
-    def fetch_all_record(self):
+    def fetch_all_category(self):
         cursor=self.conn.execute("SELECT * FROM categorytable")
         records=cursor.fetchall()    
         return records
@@ -284,6 +363,10 @@ class ExpenseApp(MDApp):
         self.date_dialog = MDDatePicker()
         self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)
 
+    def close_nav_drawer(self):
+        self.root.ids.nav_drawer.set_state("close")   
+      
+
     def set_item(self, text__item):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
@@ -295,9 +378,7 @@ class ExpenseApp(MDApp):
     def change_title(self):
         current_screen = self.screen.ids.screen_manager.current_screen
         title_text = current_screen.name.replace('_', ' ').capitalize() if current_screen else "Expenses"
-        self.screen.ids.appbarid.title =f"Expenses App ({title_text})" 
-        boxlayout = current_screen.ids.firstlayout
-        print(boxlayout)
+        self.screen.ids.appbarid.title =f"Expenses App ({title_text})"        
 
     # ************** Date Picker ***************
     def on_save(self, instance, value, date_range):
