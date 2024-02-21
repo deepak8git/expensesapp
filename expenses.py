@@ -416,7 +416,7 @@ class ExpenseApp(MDApp):
     def load_records(self):
         records=self.db_handler.fetch_all_record()
         mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid 
-
+        records.reverse()
         for row in records:
             ids=row[0]
             self.date_value=row[2]
@@ -454,7 +454,10 @@ class ExpenseApp(MDApp):
             self.date_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text )
             self.item_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text)
             self.amount_value=str(self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text)
-                 
+
+            if not all([self.cat_value, self.time_value, self.date_value, self.item_value, self.amount_value]):       
+                return
+
             mylist.add_widget(
                 
                 ThreeLineAvatarIconListItem(
@@ -471,9 +474,12 @@ class ExpenseApp(MDApp):
                     secondary_text=self.cat_value,
                     tertiary_text=f"{self.date_value} - {self.time_value}"
                 ) 
-            )           
+            )  
+ 
             self.db_handler.insert_record(item_id,0,self.date_value,self.time_value,self.cat_value,self.item_value,self.amount_value)
-        
+            mylist.clear_widgets()
+            self.load_records()
+
         elif self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text=="Update":
     
             mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
