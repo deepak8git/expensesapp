@@ -206,13 +206,52 @@ MDScreen:
                     
 <Category>:
     name:"category"  
-    MDLabel:
-        text:"Category Screen"
-        halign:"center"
+    MDBoxLayout:    
+        orientation:"vertical"
+        pos_hint:{"top":0.94}
+           
+        MDBoxLayout:
+            padding:10
+            spacing:10
+            pos_hint:{"y":0.95}
+            size_hint_y:0.1
+            
+            MDTextField:
+                id:inputtodo
+                hint_text:"insert you text here"
+                mode:"fill"
+                required:True
+                size_hint_x:0.6            
+            
+            MDRaisedButton:
+                text:"Add"
+               
+                
+        MDBoxLayout:
+            
+            MDScrollView:
+                MDList:
+                    id:todolist
+                    TwoLineAvatarIconListItem:
+                        text: "Item 1"
+                        secondary_text: "Description for Item 1"
+                        icon: "star"
+                        ImageLeftWidget:
+                            source: "avatar1.png"
 
-    MDRectangleFlatButton:
-        text:"Category"
-        pos_hint:{"center_x":0.5,"center_y":0.4}
+                    TwoLineAvatarIconListItem:
+                        text: "Item 1"
+                        secondary_text: "Description for Item 1"
+                        icon: "star"
+                        ImageLeftWidget:
+                            source: "avatar1.png"
+
+                    TwoLineAvatarIconListItem:
+                        text: "Item 1"
+                        secondary_text: "Description for Item 1"
+                        icon: "star"
+                        ImageLeftWidget:
+                            source: "avatar1.png"
        
 
 <ExpensesView>:
