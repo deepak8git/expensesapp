@@ -111,7 +111,8 @@ MDScreen:
 
         
 <Expenses>:
-    name:"expenses"    
+    name:"expenses" 
+    id:expenses   
     MDBoxLayout:
         id:firstlayout
         orientation:"vertical"
@@ -144,11 +145,11 @@ MDScreen:
             
         MDTextField:
             id:categoryid
-            hint_text:"Category"
+            hint_text:"Category"            
             mode:"fill"
             required:True
             keyboard_mode: "managed"
-            on_focus: if self.focus: app.menu.open()
+            #on_focus: if self.focus: app.menu.open()
 
         MDTextField:
             id:itemnameid
@@ -269,9 +270,10 @@ MDScreen:
 """
 
 class Expenses(Screen):
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-      
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)      
+
+  
 class Category(Screen):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -281,16 +283,12 @@ class ExpensesView(Screen):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.db_handler=ExpenseDatabaseHandler()
-        print("expenseview entry")  
+        self.cat_db_handler=CategoryDatabaseHandler()      
+        self.cat_id=""          
 
         
-
-
-        layout = MDBoxLayout(orientation='vertical',pos_hint={"top":0.84},padding=15,size_hint_y=None,height= dp(650) )      
-
-
+        layout = MDBoxLayout(orientation='vertical',pos_hint={"top":0.84},padding=15,size_hint_y=None,height= dp(650))    
         records = self.db_handler.fetch_all_record()
-        
         total_amount = sum(float(record[6]) for record in records)
 
         self.data_table = MDDataTable(
@@ -311,22 +309,33 @@ class ExpensesView(Screen):
             ]
         )
         
-        text_field = MDTextField(hint_text="category", size_hint=(None, None), size=(150, 40))
-        layout.add_widget(text_field)
+        self.text_field = MDTextField(id="textid", hint_text="category", size_hint=(None, None), size=(150, 40))        
+        self.ids['textid'] = self.text_field
+
+
+        layout.add_widget(self.text_field)
         layout.add_widget(self.data_table) 
         self.add_widget(layout) 
 
         total_label = MDLabel(text=f"Amount: {total_amount}", halign="right", size_hint_y=None, height=dp(40))
         layout.add_widget(total_label)
-       
-        #self.load_menu()
+        self.load_menu()
+        self.ids['textid'].bind(focus=self.on_category_focus) 
+        
+        # print(f'There are {len(self.ids.items())} id(s)')        
+        # for key, widget in self.ids.items():
+        #     if hasattr(widget, 'text'):
+        #         print(f"ID: {key}, Text: {widget.text}")
+        #     else:
+        #         print(f"ID: {key}, Widget does not have 'text' attribute")   
+        #print(self.ids['textid'].text)
 
-    def printtext(self):
-        print("hello text")
 
-
+   
+        
     def load_menu(self):
-        categories = self.cat_db_handler.fetch_all_category()       
+     
+        categories = self.cat_db_handler.fetch_all_category()         
         menu_items = []
         for category_id, category_name in categories:
             menu_item = {
@@ -339,19 +348,28 @@ class ExpensesView(Screen):
             menu_items.append(menu_item)      
 
         self.menu = MDDropdownMenu(
-            caller=self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid,            
+            caller=self.ids['textid'],            
             items=menu_items,
             position="bottom",
             width_mult=4,
         )
+
         self.menu.bind(on_dismiss=self.on_menu_dismiss)
       
     def set_item(self, text__item,cat_id):
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
+        self.ids['textid'].focus=False
+        self.ids['textid'].text = text__item
         self.cat_id=cat_id
         self.menu.dismiss()
-        
+
+    def on_menu_dismiss(self, instance):
+        self.ids['textid'].focus=False                   
+
+            
+    def on_category_focus(self,instance, value):   
+        if value:       
+            self.menu.open()    
+       
 
 class CategoryView(Screen):
     pass
@@ -424,7 +442,7 @@ class ExpenseApp(MDApp):
         super().__init__(**kwargs)
         self.db_handler=ExpenseDatabaseHandler()
         self.cat_db_handler=CategoryDatabaseHandler()
-
+       
         self.screen = Builder.load_string(screen)
         self.record_id=""
         self.amount_value=""
@@ -436,13 +454,13 @@ class ExpenseApp(MDApp):
         
         self.date_dialog = MDDatePicker()
         self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)     
+        self.load_menu()  
 
-        self.load_menu()
-
-
-
+        
+        
     def load_menu(self):
-        categories = self.cat_db_handler.fetch_all_category()       
+     
+        categories = self.cat_db_handler.fetch_all_category()         
         menu_items = []
         for category_id, category_name in categories:
             menu_item = {
@@ -460,6 +478,7 @@ class ExpenseApp(MDApp):
             position="bottom",
             width_mult=4,
         )
+
         self.menu.bind(on_dismiss=self.on_menu_dismiss)
       
     def set_item(self, text__item,cat_id):
@@ -467,12 +486,12 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
         self.cat_id=cat_id
         self.menu.dismiss()
-        
-    def close_nav_drawer(self):
-        self.root.ids.nav_drawer.set_state("close") 
 
     def on_menu_dismiss(self, instance):
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False        
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False      
+       
+    def close_nav_drawer(self):
+        self.root.ids.nav_drawer.set_state("close") 
 
     def change_title(self):
         current_screen = self.screen.ids.screen_manager.current_screen
@@ -496,16 +515,21 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.focus=False
     # *******************************************
     
-
     def build(self):
         #self.sc=Builder.load_string(screen)                
-        return  self.screen
+        return self.screen
     
     def on_start(self):
         self.change_title()
         self.load_records()
-        self.load_category()
+        self.load_category()   
+        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.bind(focus=self.on_category_focus)      
 
+            
+    def on_category_focus(self,instance, value):   
+        if value:       
+            self.menu.open()
+        
 
     def clear_controls(self):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = ""
@@ -626,7 +650,6 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text =self.item_value.strip()
         self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text =self.amount_value.strip()       
         self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text ="Update"  
-
 
     def add_new_category(self):
 
