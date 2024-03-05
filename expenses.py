@@ -108,8 +108,6 @@ MDScreen:
                     icon:"information-outline"
                     text:"About Me"
 
-
-        
 <Expenses>:
     name:"expenses" 
     id:expenses   
@@ -280,47 +278,36 @@ class Category(Screen):
         print("category")
 
 class ExpensesView(Screen):
+
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+
+
         self.db_handler=ExpenseDatabaseHandler()
         self.cat_db_handler=CategoryDatabaseHandler()      
-        self.cat_id=""          
-
+        self.cat_id=""    
+        self.total_amount=0      
         
-        layout = MDBoxLayout(orientation='vertical',pos_hint={"top":0.84},padding=15,size_hint_y=None,height= dp(650))    
-        records = self.db_handler.fetch_all_record()
-        total_amount = sum(float(record[6]) for record in records)
-
-        self.data_table = MDDataTable(
-            size_hint=(1,0.75),
-            use_pagination=True,
-            rows_num=100,
-            check=False,
-            column_data=[
-                ("[size=30]Date", dp(15)),
-                ("[size=30]Time", dp(14)),
-                ("[size=30]Category", dp(18)),
-                ("[size=30]Item", dp(17)),
-                ("[size=30]Amount", dp(10))
-            ],
-            row_data=[
-                (f"[size=30]{record[2]}", f"[size=30]{record[3]}", f"[size=30]{record[4]}", 
-                 f"[size=30]{record[5]}", f"[size=30]{record[6]}") for record in records
-            ]
-        )
-        
-        self.text_field = MDTextField(id="textid", hint_text="category", size_hint=(None, None), size=(150, 40))        
+        self.text_field = MDTextField(id="textid",padding=10, mode="fill", hint_text="category", size_hint=(None, None), size=(300, 40))        
         self.ids['textid'] = self.text_field
 
-
-        layout.add_widget(self.text_field)
-        layout.add_widget(self.data_table) 
-        self.add_widget(layout) 
-
-        total_label = MDLabel(text=f"Amount: {total_amount}", halign="right", size_hint_y=None, height=dp(40))
-        layout.add_widget(total_label)
         self.load_menu()
         self.ids['textid'].bind(focus=self.on_category_focus) 
+
+        self.layout = MDBoxLayout(orientation='vertical',pos_hint={"top":0.88},padding=15,spacing=20,size_hint_y=None,height= dp(700))    
+        self.data_table = self.create_data_table(self.cat_id)   
+
+        self.layout.add_widget(self.text_field)
+        self.layout.add_widget(self.data_table) 
+
+
+        self.ids['textid'].bind(focus=self.on_category_focus)
+        self.ids['textid'].bind(text=self.on_category_change)
+        self.add_widget(self.layout) 
+
+        self.total_label = MDLabel(text=f"Amount: {self.total_amount}", halign="right", size_hint_y=None, height=dp(40))
+        self.layout.add_widget(self.total_label)
+        
         
         # print(f'There are {len(self.ids.items())} id(s)')        
         # for key, widget in self.ids.items():
@@ -330,9 +317,60 @@ class ExpensesView(Screen):
         #         print(f"ID: {key}, Widget does not have 'text' attribute")   
         #print(self.ids['textid'].text)
 
+    def on_category_change(self, instance, value):
+        if value:
+            category_id = self.get_category_id(value)
+            self.layout.remove_widget(self.data_table)
+            self.data_table = self.create_data_table(category_id)
+            self.layout.add_widget(self.data_table)
 
-   
+    def get_category_id(self, category_name):
+        categories = self.cat_db_handler.fetch_all_category()
+        for category_id, name in categories:
+            if name == category_name:
+                return category_id
+        return None
+    
+       
+    def create_data_table(self,category_id):
+        records = self.db_handler.fetch_all_record()
         
+        if category_id:
+            records = [record for record in records if record[1] == category_id]
+            
+        self.total_amount = sum(float(record[6]) for record in records)
+
+        self.data_table = MDDataTable(
+            size_hint=(1,0.75),
+            #use_pagination=True,
+            rows_num=100,
+            check=False,
+            column_data=[
+                ("[size=18]Date", dp(15)),
+                ("[size=18]Time", dp(14)),
+                ("[size=18]Category", dp(18)),
+                ("[size=18]Item", dp(17)),
+                ("[size=18]Amount", dp(10))
+            ],
+            row_data=[
+                (f"[size=18]{record[2]}", f"[size=18]{record[3]}", f"[size=18]{record[4]}", 
+                 f"[size=18]{record[5]}", f"[size=18]{record[6]}") for record in records
+            ]
+
+            # column_data=[
+            #     ("[size=30]Date", dp(15)),
+            #     ("[size=30]Time", dp(14)),
+            #     ("[size=30]Category", dp(18)),
+            #     ("[size=30]Item", dp(17)),
+            #     ("[size=30]Amount", dp(10))
+            # ],
+            # row_data=[
+            #     (f"[size=30]{record[2]}", f"[size=30]{record[3]}", f"[size=30]{record[4]}", 
+            #      f"[size=30]{record[5]}", f"[size=30]{record[6]}") for record in records
+            # ]
+        )
+        return self.data_table
+
     def load_menu(self):
      
         categories = self.cat_db_handler.fetch_all_category()         
@@ -359,12 +397,11 @@ class ExpensesView(Screen):
     def set_item(self, text__item,cat_id):
         self.ids['textid'].focus=False
         self.ids['textid'].text = text__item
-        self.cat_id=cat_id
+        self.cat_id=cat_id      
         self.menu.dismiss()
 
     def on_menu_dismiss(self, instance):
         self.ids['textid'].focus=False                   
-
             
     def on_category_focus(self,instance, value):   
         if value:       
