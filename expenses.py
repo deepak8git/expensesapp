@@ -15,6 +15,7 @@ from kivymd.uix.list import ThreeLineAvatarIconListItem,IconLeftWidget,IconRight
 from kivymd.uix.anchorlayout import MDAnchorLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.textfield import MDTextField
+from kivy.clock import Clock
 #Window.size=(500,1000)
 
 import sqlite3
@@ -96,7 +97,6 @@ MDScreen:
                         app.close_nav_drawer()
                 
                 MDSeparator:
-                                               
                
                 MDNavigationDrawerLabel:
                     text:"Settings"
@@ -119,7 +119,6 @@ MDScreen:
         adaptive_height:True
         pos_hint:{"top":0.86}
         
-
         MDBoxLayout:
             orientation: "horizontal"
             spacing: dp(10)
@@ -131,7 +130,7 @@ MDScreen:
                 required:True 
                 keyboard_mode: "managed"
                 size_hint_x:0.6 
-                on_focus: if self.focus:app.show_date_picker()
+                #on_focus: if self.focus:app.show_date_picker()
 
             MDTextField:
                 id:timeid
@@ -230,18 +229,20 @@ MDScreen:
             MDRaisedButton:
                 id:cataddbtnid
                 text:"Add"
-                on_release:app.add_new_category()
+                #on_release:app.add_new_category()
                
-                
         MDBoxLayout:
             
             MDScrollView:
                 MDList:
-                    id:catlist                   
+                    id:catlist                  
        
 
 <ExpensesView>:
-    name:"expenseview"                
+    name:"expenseview"    
+    on_enter: 
+        self.counter:0
+        self.on_category_change("from menu","")
     
 <CategoryView>:
     name:"categoryview"   
@@ -269,26 +270,221 @@ MDScreen:
 
 class Expenses(Screen):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)      
+        super().__init__(**kwargs)    
+        self.db_handler=ExpenseDatabaseHandler()
+        self.cat_db_handler=CategoryDatabaseHandler()
+
+        self.expscreen=""  
+        Clock.schedule_once(self.get_exp_screen)                             
+       # self.load_category()  
+    
+    def get_exp_screen(self, dt):
+        self.expscreen = MDApp.get_running_app().root.ids.screen_manager.get_screen("expenses")
+        self.expscreen.ids.datetimeid.bind(focus=self.show_date_picker)
+        self.expscreen.ids.categoryid.bind(focus=self.on_category_focus)    
+        self.load_menu()  
+
+        print(len(self.expscreen.ids))
+        for item in self.expscreen.ids:
+            print(item)       
+
+    def show_date_picker(self, instance, value):
+        if value:  # If the datetimeid gains focus
+            self.date_dialog = MDDatePicker()
+            self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)
+            self.date_dialog.open()
+            
+        self.expscreen.ids.datetimeid.focus=False
+        self.expscreen.ids.timeid.focus=False
+
+    def on_save(self, instance, value, date_range):
+        self.expscreen.ids.datetimeid.text = value.strftime("%d") + "/" + value.strftime("%m") + "/" + value.strftime("%Y")
+        current_time = datetime.now().strftime("%I:%M %p")
+        self.expscreen.ids.timeid.text = current_time
+        self.date_dialog.dismiss()
+
+    def on_cancel(self, instance, value):
+        '''Events called when the "CANCEL" dialog box button is clicked.'''
+        self.date_dialog.dismiss()
+
+        
+    def load_menu(self):
+     
+        categories = self.cat_db_handler.fetch_all_category()         
+        menu_items = []
+        for category_id, category_name in categories:
+            menu_item = {
+                "viewclass": "OneLineListItem",
+                "icon": "git",
+                "height": dp(56),
+                "text": category_name,
+                "on_release": lambda x=category_name,cat_id=category_id: self.set_item(x,cat_id),
+            }
+            menu_items.append(menu_item)      
+
+        self.menu = MDDropdownMenu(
+            caller=self.expscreen.ids.categoryid,            
+            items=menu_items,
+            position="bottom",
+            width_mult=4,
+        )
+
+        self.menu.bind(on_dismiss=self.on_menu_dismiss)
+      
+    def set_item(self, text__item,cat_id):
+        self.expscreen.ids.categoryid.focus=False
+        self.expscreen.ids.categoryid.text = text__item
+        self.cat_id=cat_id
+        self.menu.dismiss()
+
+    def on_menu_dismiss(self, instance):
+        self.expscreen.ids.categoryid.focus=False     
+
+    def on_category_focus(self,instance, value):   
+        if value:       
+            self.menu.open() 
+       
 
   
 class Category(Screen):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-        print("category")
+        self.catscreen=""
+        self.db_handler=ExpenseDatabaseHandler()
+        self.cat_db_handler=CategoryDatabaseHandler()     
+        Clock.schedule_once(self.get_cat_screen)      
+                       
+       # self.load_category()  
+    
+    def get_cat_screen(self, dt):
+         self.catscreen = MDApp.get_running_app().root.ids.screen_manager.get_screen("category")
+         print(self.catscreen.ids.catlist)
+
+    def on_pre_enter(self):
+        self.catscreen.ids.cataddbtnid.bind(on_release=self.add_new_category)
+        self.load_category()
+
+    def load_category(self):
+
+        records=self.cat_db_handler.fetch_all_category()
+        
+        categorylist = self.catscreen.ids.catlist
+        categorylist.clear_widgets()
+        records.reverse()
+        for row in records:
+            category_id=row[0]           
+            self.cat_value=row[1]           
+
+            categorylist.add_widget(
+                OneLineAvatarIconListItem(
+                    IconLeftWidget(
+                        icon="pencil",                        
+                        #on_release=lambda x: self.editbtn(item_id,datevalue,timevalue,catvalue,itemvalue,amountvalue)
+                        on_release=lambda x,item_id=category_id: self.edit_category(item_id)
+                    ),
+                    IconRightWidget(
+                        icon="delete",
+                        on_release=lambda x,item_id=category_id:self.delete_category(item_id)
+                    ),
+                    id=category_id,
+                    text=self.cat_value   
+                ) 
+            ) 
+
+    def add_new_category(self,*args):
+
+        if self.catscreen.ids.cataddbtnid.text=="Add":
+            
+            category_id=str(uuid.uuid4())         
+            categorylist = self.catscreen.ids.catlist  # Accessing mylistid properly
+            self.cat_value=str(self.catscreen.ids.catinput.text)          
+
+            if not all([self.cat_value]):       
+                return
+
+            categorylist.add_widget(
+                    
+                OneLineAvatarIconListItem(
+                    IconLeftWidget(
+                        icon="pencil",                        
+                        on_release=lambda x: self.editbtn(category_id)
+                    ),
+                    IconRightWidget(
+                        icon="delete",
+                        on_release=lambda x:self.deletebtn(category_id)
+                    ),
+                    id=category_id,
+                    text=self.cat_value                    
+                ) 
+            )  
+    
+            self.cat_db_handler.insert_category(category_id,self.cat_value)
+
+            categorylist.clear_widgets()
+            self.load_category()
+            
+        elif self.catscreen.ids.cataddbtnid.text=="Update":
+    
+            categorylist = self.catscreen.ids.catlist
+            self.cat_value=str(self.catscreen.ids.catinput.text)  
+
+            for child in categorylist.children:
+                if child.id==self.record_id:
+                    child.text=self.cat_value                  
+             
+            self.cat_db_handler.update_category(self.record_id,self.cat_value)
+        
+        self.clear_category_controls()
+
+    def edit_category(self,category_id):
+        categorylist = self.catscreen.ids.catlist 
+        for child in categorylist.children:
+            if child.id==category_id:                
+                self.cat_value = child.text             
+
+        self.record_id=category_id
+        self.catscreen.ids.catinput.text = self.cat_value.strip()          
+        self.catscreen.ids.cataddbtnid.text="Update"          
+
+    def clear_category_controls(self):
+        self.catscreen.ids.catinput.text = ""           
+
+    def delete_category(self,category_id):
+        categorylist = self.catscreen.ids.catlist
+        for child in categorylist.children:
+            if child.id==category_id:             
+                categorylist.remove_widget(child) 
+        self.cat_db_handler.delete_category(category_id)
+        self.db_handler.delete_record_category(category_id)      
 
 class ExpensesView(Screen):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-
-
         self.db_handler=ExpenseDatabaseHandler()
         self.cat_db_handler=CategoryDatabaseHandler()      
         self.cat_id=""    
         self.total_amount=0      
-        
-        self.text_field = MDTextField(id="textid",padding=10, mode="fill", hint_text="category", size_hint=(None, None), size=(300, 40))        
+        self.counter=0
+        self.load_all()
+
+        # print(f'There are {len(self.ids.items())} id(s)')        
+        # for key, widget in self.ids.items():
+        #     if hasattr(widget, 'text'):
+        #         print(f"ID: {key}, Text: {widget.text}")
+        #     else:
+        #         print(f"ID: {key}, Widget does not have 'text' attribute")   
+        #print(self.ids['textid'].text)
+
+    def on_pre_enter(self):
+        self.counter=0
+        #self.on_category_change("", "")
+        self.load_menu()
+
+
+    def load_all(self):
+      
+        self.text_field = MDTextField(id="textid",padding=10, mode="fill", hint_text="category", size_hint=(None, None), size=(500, 40))        
         self.ids['textid'] = self.text_field
 
         self.load_menu()
@@ -300,30 +496,31 @@ class ExpensesView(Screen):
         self.layout.add_widget(self.text_field)
         self.layout.add_widget(self.data_table) 
 
-
         self.ids['textid'].bind(focus=self.on_category_focus)
         self.ids['textid'].bind(text=self.on_category_change)
-        self.add_widget(self.layout) 
 
-        self.total_label = MDLabel(text=f"Amount: {self.total_amount}", halign="right", size_hint_y=None, height=dp(40))
-        self.layout.add_widget(self.total_label)
-        
-        
-        # print(f'There are {len(self.ids.items())} id(s)')        
-        # for key, widget in self.ids.items():
-        #     if hasattr(widget, 'text'):
-        #         print(f"ID: {key}, Text: {widget.text}")
-        #     else:
-        #         print(f"ID: {key}, Widget does not have 'text' attribute")   
-        #print(self.ids['textid'].text)
+        self.amt_label = self.create_amt_label()
+        self.layout.add_widget(self.amt_label) 
+
+        self.add_widget(self.layout)    
 
     def on_category_change(self, instance, value):
-        if value:
-            category_id = self.get_category_id(value)
-            self.layout.remove_widget(self.data_table)
-            self.data_table = self.create_data_table(category_id)
-            self.layout.add_widget(self.data_table)
+        self.counter = self.counter+1
+        
+        #print(self.counter)
+        if self.counter ==1:
+            value=""     
+            self.text_field.text=""     
+     
+        category_id = self.get_category_id(value)
+        self.layout.remove_widget(self.data_table)
+        self.data_table = self.create_data_table(category_id)
+        self.layout.add_widget(self.data_table)
 
+        self.layout.remove_widget(self.amt_label)
+        self.amt_label = self.create_amt_label()
+        self.layout.add_widget(self.amt_label) 
+        
     def get_category_id(self, category_name):
         categories = self.cat_db_handler.fetch_all_category()
         for category_id, name in categories:
@@ -331,50 +528,67 @@ class ExpensesView(Screen):
                 return category_id
         return None
     
+    def create_amt_label(self):
+        self.total_label = MDLabel(text=f"Amount: {self.total_amount}", halign="right", size_hint_y=None, height=dp(40))
+        return self.total_label
        
     def create_data_table(self,category_id):
+       
         records = self.db_handler.fetch_all_record()
-        
-        if category_id:
-            records = [record for record in records if record[1] == category_id]
-            
         self.total_amount = sum(float(record[6]) for record in records)
+
+        #print(category_id)
+
+        if category_id:            
+            records = [record for record in records if record[1] == category_id]
+            self.total_amount = sum(float(record[6]) for record in records)
+        
 
         self.data_table = MDDataTable(
             size_hint=(1,0.75),
             #use_pagination=True,
             rows_num=100,
             check=False,
-            column_data=[
-                ("[size=18]Date", dp(15)),
-                ("[size=18]Time", dp(14)),
-                ("[size=18]Category", dp(18)),
-                ("[size=18]Item", dp(17)),
-                ("[size=18]Amount", dp(10))
-            ],
-            row_data=[
-                (f"[size=18]{record[2]}", f"[size=18]{record[3]}", f"[size=18]{record[4]}", 
-                 f"[size=18]{record[5]}", f"[size=18]{record[6]}") for record in records
-            ]
-
             # column_data=[
-            #     ("[size=30]Date", dp(15)),
-            #     ("[size=30]Time", dp(14)),
-            #     ("[size=30]Category", dp(18)),
-            #     ("[size=30]Item", dp(17)),
-            #     ("[size=30]Amount", dp(10))
+            #     ("[size=18]Date", dp(15)),
+            #     ("[size=18]Time", dp(14)),
+            #     ("[size=18]Category", dp(18)),
+            #     ("[size=18]Item", dp(17)),
+            #     ("[size=18]Amount", dp(10))
             # ],
             # row_data=[
-            #     (f"[size=30]{record[2]}", f"[size=30]{record[3]}", f"[size=30]{record[4]}", 
-            #      f"[size=30]{record[5]}", f"[size=30]{record[6]}") for record in records
+            #     (f"[size=18]{record[2]}", f"[size=18]{record[3]}", f"[size=18]{record[4]}", 
+            #      f"[size=18]{record[5]}", f"[size=18]{record[6]}") for record in records
             # ]
+
+            column_data=[
+                ("[size=30]Date", dp(15)),
+                ("[size=30]Time", dp(14)),
+                ("[size=30]Category", dp(18)),
+                ("[size=30]Item", dp(17)),
+                ("[size=30]Amount", dp(10))
+            ],
+            row_data=[
+                (f"[size=30]{record[2]}", f"[size=30]{record[3]}", f"[size=30]{record[4]}", 
+                 f"[size=30]{record[5]}", f"[size=30]{record[6]}") for record in records
+            ]
         )
+        self.data_table.elevation=0
         return self.data_table
 
     def load_menu(self):
      
         categories = self.cat_db_handler.fetch_all_category()         
+        
         menu_items = []
+        menu_items.append({
+            "viewclass": "OneLineListItem",
+            "icon": "git",
+            "height": dp(56),
+            "text": "All category",
+            "on_release": lambda x="All category", cat_id=None: self.set_item(x, cat_id),
+        })
+
         for category_id, category_name in categories:
             menu_item = {
                 "viewclass": "OneLineListItem",
@@ -407,7 +621,6 @@ class ExpensesView(Screen):
         if value:       
             self.menu.open()    
        
-
 class CategoryView(Screen):
     pass
 class ChartView(Screen):
@@ -435,6 +648,10 @@ class ExpenseDatabaseHandler:
 
     def delete_record(self,item_id):
         self.conn.execute("DELETE FROM expensetable WHERE id = ?",(item_id,))
+        self.conn.commit()
+
+    def delete_record_category(self,catid):
+        self.conn.execute("DELETE FROM expensetable WHERE categoryid = ?",(catid,))
         self.conn.commit()
 
     def fetch_all_record(self):
@@ -489,44 +706,56 @@ class ExpenseApp(MDApp):
         self.time_value=""
         self.cat_id=""        
         
-        self.date_dialog = MDDatePicker()
-        self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)     
-        self.load_menu()  
+        #self.date_dialog = MDDatePicker()
+        #self.date_dialog.bind(on_save=self.on_save, on_cancel=self.on_cancel)     
 
-        
-        
-    def load_menu(self):
-     
-        categories = self.cat_db_handler.fetch_all_category()         
-        menu_items = []
-        for category_id, category_name in categories:
-            menu_item = {
-                "viewclass": "OneLineListItem",
-                "icon": "git",
-                "height": dp(56),
-                "text": category_name,
-                "on_release": lambda x=category_name,cat_id=category_id: self.set_item(x,cat_id),
-            }
-            menu_items.append(menu_item)      
 
-        self.menu = MDDropdownMenu(
-            caller=self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid,            
-            items=menu_items,
-            position="bottom",
-            width_mult=4,
-        )
-
-        self.menu.bind(on_dismiss=self.on_menu_dismiss)
-      
-    def set_item(self, text__item,cat_id):
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
-        self.cat_id=cat_id
-        self.menu.dismiss()
-
-    def on_menu_dismiss(self, instance):
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False      
+        #self.load_menu()  
        
+       
+        #print(len(self.screen.ids.screen_manager.screens))
+        # for item in self.screen.ids.screen_manager.screens:
+        #     print(item.name)
+
+        
+    # def load_menu(self):
+     
+    #     categories = self.cat_db_handler.fetch_all_category()         
+    #     menu_items = []
+    #     for category_id, category_name in categories:
+    #         menu_item = {
+    #             "viewclass": "OneLineListItem",
+    #             "icon": "git",
+    #             "height": dp(56),
+    #             "text": category_name,
+    #             "on_release": lambda x=category_name,cat_id=category_id: self.set_item(x,cat_id),
+    #         }
+    #         menu_items.append(menu_item)      
+
+    #     self.menu = MDDropdownMenu(
+    #         caller=self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid,            
+    #         items=menu_items,
+    #         position="bottom",
+    #         width_mult=4,
+    #     )
+
+    #     self.menu.bind(on_dismiss=self.on_menu_dismiss)
+      
+    # def set_item(self, text__item,cat_id):
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = text__item
+    #     self.cat_id=cat_id
+    #     self.menu.dismiss()
+
+    # def on_menu_dismiss(self, instance):
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.focus=False      
+       
+    # def on_category_focus(self,instance, value):   
+    #     if value:       
+    #         self.menu.open()
+
+
+
     def close_nav_drawer(self):
         self.root.ids.nav_drawer.set_state("close") 
 
@@ -535,22 +764,22 @@ class ExpenseApp(MDApp):
         title_text = current_screen.name.replace('_', ' ').capitalize() if current_screen else "Expenses"
         self.screen.ids.appbarid.title =f"Expenses App ({title_text})"        
 
-    # ************** Date Picker ***************
-    def on_save(self, instance, value, date_range):
-        self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text = value.strftime("%d") + "/" + value.strftime("%m") + "/" + value.strftime("%Y")
-        current_time = datetime.now().strftime("%I:%M %p")
-        self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text = current_time
-        self.date_dialog.dismiss()
+    # # ************** Date Picker ***************
+    # def on_save(self, instance, value, date_range):
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.text = value.strftime("%d") + "/" + value.strftime("%m") + "/" + value.strftime("%Y")
+    #     current_time = datetime.now().strftime("%I:%M %p")
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.text = current_time
+    #     self.date_dialog.dismiss()
 
-    def on_cancel(self, instance, value):
-        '''Events called when the "CANCEL" dialog box button is clicked.'''
-        self.date_dialog.dismiss()
+    # def on_cancel(self, instance, value):
+    #     '''Events called when the "CANCEL" dialog box button is clicked.'''
+    #     self.date_dialog.dismiss()
 
-    def show_date_picker(self):
-        self.date_dialog.open()
-        self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.focus=False
-        self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.focus=False
-    # *******************************************
+    # def show_date_picker(self):
+    #     self.date_dialog.open()
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.datetimeid.focus=False
+    #     self.screen.ids.screen_manager.get_screen("expenses").ids.timeid.focus=False
+    # # *******************************************
     
     def build(self):
         #self.sc=Builder.load_string(screen)                
@@ -559,14 +788,9 @@ class ExpenseApp(MDApp):
     def on_start(self):
         self.change_title()
         self.load_records()
-        self.load_category()   
-        self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.bind(focus=self.on_category_focus)      
+        #self.load_category()   
+        #self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.bind(focus=self.on_category_focus)      
 
-            
-    def on_category_focus(self,instance, value):   
-        if value:       
-            self.menu.open()
-        
 
     def clear_controls(self):
         self.screen.ids.screen_manager.get_screen("expenses").ids.categoryid.text = ""
@@ -671,6 +895,8 @@ class ExpenseApp(MDApp):
                 mylist.remove_widget(child) 
         self.db_handler.delete_record(dataid)
 
+        #delete_record_category
+
     def editbtn(self,item_id):
     
         mylist = self.screen.ids.screen_manager.get_screen("expenses").ids.mylistid
@@ -687,98 +913,6 @@ class ExpenseApp(MDApp):
         self.screen.ids.screen_manager.get_screen("expenses").ids.itemnameid.text =self.item_value.strip()
         self.screen.ids.screen_manager.get_screen("expenses").ids.amountid.text =self.amount_value.strip()       
         self.screen.ids.screen_manager.get_screen("expenses").ids.addbtnid.text ="Update"  
-
-    def add_new_category(self):
-
-        if self.screen.ids.screen_manager.get_screen("category").ids.cataddbtnid.text=="Add":
-            
-            category_id=str(uuid.uuid4())         
-            categorylist = self.screen.ids.screen_manager.get_screen("category").ids.catlist  # Accessing mylistid properly
-            self.cat_value=str(self.screen.ids.screen_manager.get_screen("category").ids.catinput.text)          
-
-            if not all([self.cat_value]):       
-                return
-
-            categorylist.add_widget(
-                    
-                OneLineAvatarIconListItem(
-                    IconLeftWidget(
-                        icon="pencil",                        
-                        on_release=lambda x: self.editbtn(category_id)
-                    ),
-                    IconRightWidget(
-                        icon="delete",
-                        on_release=lambda x:self.deletebtn(category_id)
-                    ),
-                    id=category_id,
-                    text=self.cat_value                    
-                ) 
-            )  
-    
-            self.cat_db_handler.insert_category(category_id,self.cat_value)
-
-            categorylist.clear_widgets()
-            self.load_category()
-            
-
-        elif self.screen.ids.screen_manager.get_screen("category").ids.cataddbtnid.text=="Update":
-    
-            categorylist = self.screen.ids.screen_manager.get_screen("category").ids.catlist
-            self.cat_value=str(self.screen.ids.screen_manager.get_screen("category").ids.catinput.text)  
-
-            for child in categorylist.children:
-                if child.id==self.record_id:
-                    child.text=self.cat_value                  
-             
-            self.cat_db_handler.update_category(self.record_id,self.cat_value)
-        
-        self.clear_category_controls()
-            
-    def load_category(self):
-        records=self.cat_db_handler.fetch_all_category()
-        categorylist = self.screen.ids.screen_manager.get_screen("category").ids.catlist 
-        records.reverse()
-        for row in records:
-            category_id=row[0]           
-            self.cat_value=row[1]           
-
-            categorylist.add_widget(
-                OneLineAvatarIconListItem(
-                    IconLeftWidget(
-                        icon="pencil",                        
-                        #on_release=lambda x: self.editbtn(item_id,datevalue,timevalue,catvalue,itemvalue,amountvalue)
-                        on_release=lambda x,item_id=category_id: self.edit_category(item_id)
-                    ),
-                    IconRightWidget(
-                        icon="delete",
-                        on_release=lambda x,item_id=category_id:self.delete_category(item_id)
-                    ),
-                    id=category_id,
-                    text=self.cat_value   
-                    
-                ) 
-            ) 
-
-    def edit_category(self,category_id):
-        categorylist = self.screen.ids.screen_manager.get_screen("category").ids.catlist 
-        for child in categorylist.children:
-            if child.id==category_id:                
-                self.cat_value = child.text             
-
-        self.record_id=category_id
-        self.screen.ids.screen_manager.get_screen("category").ids.catinput.text = self.cat_value.strip()          
-        self.screen.ids.screen_manager.get_screen("category").ids.cataddbtnid.text="Update"  
-
-    def clear_category_controls(self):
-        self.screen.ids.screen_manager.get_screen("category").ids.catinput.text = ""           
-
-    def delete_category(self,category_id):
-        categorylist = self.screen.ids.screen_manager.get_screen("category").ids.catlist 
-        for child in categorylist.children:
-            if child.id==category_id:             
-                categorylist.remove_widget(child) 
-        self.cat_db_handler.delete_category(category_id)
-
 
 if __name__=="__main__":
     ExpenseApp().run()
